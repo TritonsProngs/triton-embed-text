@@ -26,7 +26,21 @@ class TritonPythonModel:
         self.default_embed_model = model_config["parameters"]["default_embed_model"][
             "string_value"
         ]
-
+        # Specify the default truncation value. Can be overridden in request parameter
+        default_truncation = model_config["parameters"]["default_truncation"][
+            "string_value"
+        ]
+        if default_truncation in ["False", "false"]:
+            self.default_truncation = False
+        elif default_truncation in ["True", "true"]:
+            self.default_truncation = True
+        elif default_truncation in ["longest_first", "only_first", "only_second", "do_not_truncate"]:
+            self.default_truncation = default_truncation
+        else:
+            raise ValueError(
+                f"{default_truncation=:} does not match "
+                "transformers.tokenizer.__call__ options"
+            )
 
     async def execute(self, requests: list) -> list:
         """
@@ -58,6 +72,7 @@ class TritonPythonModel:
             # Handle any request parameters
             request_params = json.loads(request.parameters())
             embed_model = request_params.get("embed_model", self.default_embed_model)
+            truncation = request_params.get("truncation", self.default_truncation)
 
             if embed_model not in self.embed_models:
                 responses[batch_id] = pb_utils.InferenceResponse(
@@ -71,13 +86,16 @@ class TritonPythonModel:
                 input_text_tt = pb_utils.get_input_tensor_by_name(request, "INPUT_TEXT")
             except Exception as exc:
                 response = pb_utils.InferenceResponse(
-                    error=pb_utils.TritonError(f"Failed on getting input tensor from request: {exc}")
+                    error=pb_utils.TritonError(
+                        f"Failed on getting input tensor from request: {exc}"
+                    )
                 )
                 responses[batch_id] = response
                 continue
             else:
                 infer_model_request = pb_utils.InferenceRequest(
                     model_name=embed_model,
+                    parameters={"truncation": truncation},
                     requested_output_names=["EMBEDDING"],
                     inputs=[input_text_tt],
                 )

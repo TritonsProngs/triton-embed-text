@@ -22,6 +22,10 @@ parameters: [
     {
         key: "default_embed_model",
         value: {string_value: "multilingual_e5_large"},
+    },
+    {
+        key: "default_truncation",
+        value: {string_value: "false"},
     }
 ]
 instance_group [

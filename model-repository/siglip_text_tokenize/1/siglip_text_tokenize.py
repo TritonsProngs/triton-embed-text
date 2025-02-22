@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from transformers import SiglipTokenizer
 
@@ -19,6 +20,24 @@ class TritonPythonModel:
         args : dict
             Command-line arguments for launching Triton Inference Server
         """
+        self.model_config = model_config = json.loads(args["model_config"])
+
+        # Specify the default truncate value. Can be overridden in request parameter
+        default_truncation = model_config["parameters"]["default_truncation"][
+            "string_value"
+        ]
+        if default_truncation in ["False", "false"]:
+            self.default_truncation = False
+        elif default_truncation in ["True", "true"]:
+            self.default_truncation = True
+        elif default_truncation in ["longest_first", "only_first", "only_second", "do_not_truncate"]:
+            self.default_truncation = default_truncation
+        else:
+            raise ValueError(
+                f"{default_truncation=:} does not match "
+                "transformers.tokenizer.__call__ options"
+            )
+
         self.tokenizer = SiglipTokenizer.from_pretrained(
             "google/siglip-so400m-patch14-384", local_files_only=True
         )
@@ -42,6 +61,10 @@ class TritonPythonModel:
         except Exception as exc:
             raise ValueError(f"Failed on getting input tensor from request: {exc}")
 
+        # Handle any request parameters
+        request_params = json.loads(request.parameters())
+        truncation = request_params.get("truncation", self.default_truncation)
+
         try:
             input_text = [
                 b.decode("utf-8") for b in input_text_tt.as_numpy().reshape(-1)
@@ -58,7 +81,10 @@ class TritonPythonModel:
 
         try:
             input_ids_np = self.tokenizer(
-                text=input_text, padding="max_length", return_tensors="pt"
+                text=input_text,
+                padding="max_length",
+                truncation=truncation,
+                return_tensors="pt",
             )["input_ids"].numpy()
             n_tokens = input_ids_np.shape[-1]
 
@@ -67,16 +93,16 @@ class TritonPythonModel:
             # something that could severely impact performance
             if n_tokens > 64:
                 raise ValueError(
-                    f"Processing {input_text} has {n_tokens} tokens which exceeds max of 64."
+                    f"Processing {input_text} has {n_tokens} tokens which "
+                    "exceeds max of 64. You could try setting request parameter "
+                    "`truncation` to 'True' if you want to just use the first 64 "
+                    "tokens"
                 )
         except Exception as exc:
-            raise ValueError(
-                f"Failed on siglip_text_tokenize(text=input_text): {exc}"
-            )
+            raise ValueError(f"Failed on siglip_text_tokenize(text=input_text): {exc}")
 
         # Shape = [batch_size, 64], where batch_size should be 1
         return input_ids_np
-
 
     def execute(self, requests: list) -> list:
         """
@@ -107,7 +133,7 @@ class TritonPythonModel:
                     output_tensors=[
                         pb_utils.Tensor("INPUT_IDS", np.zeros((1, 64), dtype=np.int64))
                     ],
-                    error=pb_utils.TritonError(f"{exc}")
+                    error=pb_utils.TritonError(f"{exc}"),
                 )
                 responses[batch_id] = response
             else:

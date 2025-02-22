@@ -26,6 +26,17 @@ separately.
 This is a lower level of abstraction, most clients likely should be using
 [embed_text](embed_text.md) deployment.
 
+Optional Request Parameters:
+* `truncation`: str | bool, optional, default=False
+  Passed along to Huggingface tokenizer class. See [tokenizer docs](https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__) for more details. Mostly likely
+  value will be `True` which truncates the provided text to the maximum length of
+  tokens supported by the model. Otherwise, if the provided text is too many tokens,
+  an error will be returned. Acceptable values for current tokenizer class are:
+    * True or 'longest_first'
+    * 'only_first'
+    * 'only_second'
+    * False or 'do_not_truncate'
+
 ## Example Request
 Here's an example request. Just a few things to point out
 1. "shape": [1, 1] because we have dynamic batching and the first axis is

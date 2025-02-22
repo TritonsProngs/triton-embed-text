@@ -12,8 +12,17 @@ addition, this allows for controlling the GPU RAM consumed by the server.
 
 Optional Request Parameters:
 * `embed_model`: str, optional, default="multilingual_e5_large"
-  Specify which embedding model to use. Choices are `multilingual_e5_large` or
-  `siglip_text`.
+  Specify which embedding model to use. Choices are `multilingual_e5_large`,
+  `siglip_text`, or `e5_large_v2`
+* `truncation`: str | bool, optional, default=False
+  Passed along to Huggingface tokenizer class. See [tokenizer docs](https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__) for more details. Mostly likely
+  value will be `True` which truncates the provided text to the maximum length of
+  tokens supported by the model. Otherwise, if the provided text is too many tokens,
+  an error will be returned. Acceptable values for current tokenizer class are:
+    * True or 'longest_first'
+    * 'only_first'
+    * 'only_second'
+    * False or 'do_not_truncate'
 
 ## Multilingual E5 Text Embeddings
 For optimal performance, all text sent must have either "query: " or "passage: "
@@ -65,6 +74,35 @@ response_json = text_embed_response.json()
     ]
 }
 """
+text_embedding = np.array(response_json["outputs"][0]["data"]).astype(np.float32)
+
+# Try using longer text but with truncation request parameter
+text = """query: 
+In the year 2075, Paris was a city of neon and steel, where the air was thick with the hum of drones and the smell of ozone. The once-great Seine was now a channel of neon, illuminated by the advertisements that never stopped flashing, even in the dead of night. The Eiffel Tower, still standing as a testament to an era long gone, was now a behemoth of corporate logos, each vying for the attention of the passing crowds.
+
+The streets below were a labyrinth of shadows, where the remnants of humanity huddled in the remnants of humanity, where the remnants of humanity huddled in the shadows. The elite lived in sky cities, where they had never known the harsh reality of the ground below, where the poor lived out their days in squalor, trying to make ends meet in a society that had all but forgotten them. The only thing that ever changed was the weather, which was a constant battle between the corporations and the planet. The Parisian air was thick with pollution and the smell of ozone. The air was thick with pollution and the smell of ozone.
+
+The city was ruled by an uneasy alliance of corporations and their private armies. The police were more like enforcers, taking bribes and looking the other way while the corporations did whatever they pleased. It was a world where the only law was the law of the jungle, where the strong preyed on the weak, and where the weak were left to fend for themselves. And yet, amidst this chaos, there were those who dared to challenge the status quo, who fought for a better future. One such group was the Netrunners, who used their hacking skills to take down the corporations from the shadows. They were a constant thorn in the side of the ruling elite, and they were not going to stop anytime soon. This night was no different. In the shadows of the old Montmartre district, a lone figure darted through the alleys, cloak billowing behind them. The figure, known as Phantom, was a notorious Netrunner, and tonight, they had a job to do. Their target was one of the most powerful corporations in the city, and their mission was to expose the dark secrets hidden within the corporate mainframe.
+
+Phantom moved swiftly and silently, their augmented reality glasses guiding them through the maze of back alleys and abandoned buildings. The city's underbelly was a dangerous place, filled with the desperate and the depraved, but Phantom knew how to navigate its treacherous paths. As they approached their destination, the holographic advertisements flickered and warped, creating a dizzying display of light and color. Phantom paused for a moment, taking in the scene before them. The corporation's headquarters loomed ahead, a towering monolith of steel and glass, its surface adorned with the ever-shifting logos of its many subsidiaries. Phantom took a deep breath, steeling themselves for the challenge ahead. They knew the stakes were high, but they also knew that the fight for justice was worth any risk. With a final nod of determination, Phantom stepped into the shadows and began their ascent to the top of the corporate fortress.
+"""
+inference_json = {
+    "parameters": {"truncation": True},
+    "inputs": [
+        {
+            "name": "INPUT_TEXT",
+            "shape": [1, 1],
+            "datatype": "BYTES",
+            "data": [text],
+        }
+    ]
+}
+text_embed_response = requests.post(
+    url=f"{base_url}/embed_text/infer",
+    json=inference_json,
+)
+
+response_json = text_embed_response.json()
 text_embedding = np.array(response_json["outputs"][0]["data"]).astype(np.float32)
 ```
 

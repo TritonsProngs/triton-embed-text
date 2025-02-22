@@ -94,6 +94,6 @@ Example of running multiple tasks to stage items needed to run Triton Server
 task build-execution-env-all
 task model-import
 task triton-start
-# Tail logs of running containr
+# Tail logs of running container
 docker logs -f $(docker ps -q --filter "name=triton-inference-server")
 ```

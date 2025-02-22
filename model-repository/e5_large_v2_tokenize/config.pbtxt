@@ -27,6 +27,10 @@ parameters: [
     {
         key: "EXECUTION_ENV_PATH",
         value: {string_value: "$$TRITON_MODEL_DIRECTORY/e5_large_v2_tokenize.tar.gz"},
+    },
+    {
+        key: "default_truncation",
+        value: {string_value: "false"},
     }
 ]
 instance_group [
